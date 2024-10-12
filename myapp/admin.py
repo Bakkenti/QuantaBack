@@ -18,7 +18,7 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ('course_name', 'formatted_rating', 'author')  # Customize the display of the fields
 
     def formatted_rating(self, obj):
-        # Display rating with only one decimal place, as 1.3, 2.7, etc.
+
         return f'{obj.rating:.1f}'
 
     formatted_rating.short_description = 'Rating'
