@@ -2,7 +2,6 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from django.contrib.auth.hashers import make_password, check_password
 from django.shortcuts import redirect
 from .models import Course, Lesson, Student
 from .serializers import CourseSerializer, LessonSerializer, RegistrationSerializer, LoginSerializer, ModuleSerializer
@@ -12,43 +11,34 @@ from .serializers import CourseSerializer, LessonSerializer, RegistrationSeriali
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    serializer = RegistrationSerializer(data=request.data)
-    if serializer.is_valid():
-        # Hash the password before storing it
-        student = Student(
-            username=serializer.validated_data['username'],
-            password=make_password(serializer.validated_data['password']),  # Hash the password
-        )
+    username = request.data.get('username')
+    password = request.data.get('password')
 
-        student.save()
-        return Response({"message": "Registration successful!"}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if not username or not password:
+        return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    student = Student(username=username, password=password)
+    student.save()
+    return Response({"message": "Registration successful!"}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    serializer = LoginSerializer(data=request.data)
-    if serializer.is_valid():
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
+    username = request.data.get('username')
+    password = request.data.get('password')
 
-        try:
-            # Fetch the student from the Student model
-            student = Student.objects.get(username=username)
+    if not username or not password:
+        return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Check the password
-            if check_password(password, student.password):  # Check against the hashed password
-                # Logic for creating JWT token here
-
-                return Response({"message": "Login successful!"}, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
-        except Student.DoesNotExist:
-            return Response({"error": "User does not exist"}, status=status.HTTP_401_UNAUTHORIZED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        student = Student.objects.get(username=username)
+        if student.password == password:  # Direct comparison
+            return Response({"message": "Login successful!"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    except Student.DoesNotExist:
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 @api_view(['GET'])

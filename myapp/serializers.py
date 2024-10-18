@@ -6,21 +6,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = ['username', 'password']
-        extra_kwargs = {
-            'password': {'write_only': True},
-        }
-
-    def create(self, validated_data):
-        student = Student(
-            username=validated_data['username'],
-            password=validated_data['password'],  # Store plain password
-        )
-        student.save()
-        return student
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:

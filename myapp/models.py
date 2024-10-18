@@ -35,12 +35,10 @@ def validate_module_duration(value):
 class Student(models.Model):
     id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=100, unique=True)
-    password = models.CharField(max_length=128)
+    password = models.CharField(max_length=120)
     subscribed_courses = models.ManyToManyField('Course', blank=True)
 
     def save(self, *args, **kwargs):
-        if self.password:
-            self.password = make_password(self.password)
         super(Student, self).save(*args, **kwargs)
 
     def __str__(self):
