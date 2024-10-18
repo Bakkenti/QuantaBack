@@ -1,17 +1,44 @@
 from rest_framework import serializers
-from .models import Author, Student, Course, Lesson, Post
+from .models import Author, Student, Course, Module, Lesson, Post
+
+
+class RegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = ['username', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
+
+    def create(self, validated_data):
+        student = Student(
+            username=validated_data['username'],
+            password=validated_data['password'],  # Store plain password
+        )
+        student.save()
+        return student
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = '__all__'
+        fields = ['id', 'title', 'course_image','description', 'duration', 'students_count', 'level', 'lessons_count', 'author', 'rating']
 
 class LessonSerializer(serializers.ModelSerializer):
-    course = serializers.SerializerMethodField()
-
+    module_title = serializers.CharField(source='module.title', read_only=True)
     class Meta:
         model = Lesson
-        fields = ['id', 'name', 'video_url', 'short_description', 'content', 'course']
+        fields = ['id', 'name', 'video_url', 'short_description', 'content', 'module_title']
+
+class ModuleSerializer(serializers.ModelSerializer):
+    lessons = LessonSerializer(many=True, read_only=True)  # Nested serializer for lessons
+
+    class Meta:
+        model = Module
+        fields = ['id', 'title', 'lessons']
 
     def get_course(self, obj):
-        return f"{obj.course.course_name} [id={obj.course.id}]"
+        return f"{obj.course.title} [id={obj.course.id}]"

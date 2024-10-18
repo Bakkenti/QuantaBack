@@ -1,37 +1,71 @@
 from django.contrib import admin
-from .models import Author, Student, Course, Lesson, Post
-from .forms import LessonForm
+from .models import Author, Student, Course, Module, Lesson
 
-class LessonInline(admin.StackedInline):
-    model = Lesson
-    form = LessonForm
+class ModuleInline(admin.TabularInline):
+    model = Module
     extra = 1
-    fields = ('name', 'content', 'short_description', 'video_url',)  # Explicitly declare the fields
-    classes = ('collapse',)  # Optional: Collapse the entire inline by default
+    fields = ('title', 'duration')
 
-    class Media:
-        # Include the custom JavaScript
-        js = ('myapp/js/admin_lesson_toggle.js',)
+class LessonInline(admin.TabularInline):
+    model = Lesson
+    extra = 1
+    fields = ('name', 'module', 'short_description', 'video_url')
 
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        if obj:
+            formset.form.base_fields['module'].queryset = Module.objects.filter(course=obj)
+            formset.form.base_fields['module'].required = True
+        return formset
+
+@admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    inlines = [LessonInline]
-    list_display = ('course_name', 'formatted_rating', 'author')  # Customize the display of the fields
+    inlines = [ModuleInline, LessonInline]
+    list_display = ('title', 'author', 'formatted_duration', 'students_count', 'lessons_count')
+    readonly_fields = ('students_count', 'lessons_count')
 
-    def formatted_rating(self, obj):
+    def formatted_duration(self, obj):
+        return f"{obj.duration}"
 
-        return f'{obj.rating:.1f}'
+    def students_count(self, obj):
+        return obj.student_set.count()
 
-    formatted_rating.short_description = 'Rating'
+    def lesson_count(self, obj):
+        return Lesson.objects.filter(module__course=obj).count()
 
+    formatted_duration.short_description = "Duration"
+    students_count.short_description = 'Subscribed students'
+    lesson_count.short_description = 'Number of lessons'
+
+@admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'course_name')
+    list_display = ('name', 'course', 'module', 'short_description')
 
-    def course_name(self, obj):
-        return obj.course.course_name
-    course_name.short_description = 'Course Name'
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['module'].required = True
 
-admin.site.register(Author)
-admin.site.register(Student)
-admin.site.register(Course, CourseAdmin)
-admin.site.register(Lesson)
-admin.site.register(Post)
+        if obj and obj.module:
+            form.base_fields['module'].queryset = Module.objects.filter(course=obj.module.course)
+        else:
+            form.base_fields['module'].queryset = Module.objects.none()
+        return form
+
+    def get_readonly_fields(self, request, obj=None):
+        return ['course'] if obj else []
+
+    def course(self, obj):
+        return obj.module.course if obj and obj.module else None
+
+    course.short_description = 'Course'
+
+    def has_add_permission(self, request):
+        return False
+
+@admin.register(Author)
+class AuthorAdmin(admin.ModelAdmin):
+    list_display = ('username', 'about')
+
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ('username',)
